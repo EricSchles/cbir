@@ -20,8 +20,8 @@ class ColorDescriptor:
     #off_center means that we expect no people in the center of the picture
     #this is the feature construction and processing function
     #cX,cY stand for center X and center Y, aka the middle of the picture
-    def describe(self,image,off_center=False):
-        image = cv2.cvtColor(image,cv2.COLORBGR2HSV)
+    def describe(self,image,off_center=False,full_picture=False):
+        image = cv2.cvtColor(image,cv2.COLOR_RGB2HSV)
         features = []
         (h,w) = image.shape[:2]
         (cX,cY) = (int(w*0.5), int(h*0.5))
@@ -32,8 +32,12 @@ class ColorDescriptor:
                 cv2.rectangle(cornerMask,(startX,startY),(endX,endY),255,-1)
                 hist = self.histogram(image,cornerMask)
                 features.extend(hist)
+        elif full_picture:
+            hist = self.histogram(image,None)
+            features.extend(hist)
         else:
             ellipMask = np.zeros(image.shape[:2],dtype="uint8")
+            (axesX, axesY) = (int(w * 0.75) / 2, int(h * 0.75) / 2)
             cv2.ellipse(ellipMask, (cX, cY), (axesX,axesY), 0,0,360,255,-1)
             for (startX,endX,startY,endY) in segments:
                 cornerMask = np.zeros(image.shape[:2],dtype="uint8")
@@ -44,13 +48,13 @@ class ColorDescriptor:
         return features
     
     def histogram(self,image,mask):
-        hist = cv.calcHist([image],[0,1,2],mask,self.bins,[0,180,0,256])
+        hist = cv2.calcHist([image],[0,1,2],mask,self.bins,
+        [0, 180, 0, 256, 0, 256])
         hist = cv2.normalize(hist).flatten()
         return hist
 
-
 class Searcher:
-    def __init__ (Self,indexPath):
+    def __init__ (self,indexPath):
         self.indexPath = indexPath
     def search(self, queryFeatures, limit=10):
         results = {}
@@ -77,12 +81,12 @@ if __name__ == "__main__":
                 for imagePath in glob(args["dataset"] + "/*" + img_type):
                     imageID = imagePath[imagePath.rfind("/") + 1:]
                     image = cv2.imread(imagePath)
-                    features = cd.describe(image)
+                    features = cd.describe(image,full_picture=False)
                     features = [str(f) for f in features]
                     output.write("%s,%s\n" % (imageID, ",".join(features)))
     if args["index"] and args["query"]:
         query = cv2.imread(args["query"])
-        features = cd.describe(query)
+        features = cd.describe(query,full_picture=False)
         searcher = Searcher(args["index"])
         results = searcher.search(features)
 
