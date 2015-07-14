@@ -20,7 +20,10 @@ class ColorDescriptor:
     #off_center means that we expect no people in the center of the picture
     #this is the feature construction and processing function
     #cX,cY stand for center X and center Y, aka the middle of the picture
-    def describe(self,image,off_center=False,full_picture=False):
+    #off_center creates four quadrants for the picture
+    #full_picture checks the full picture and only creates one histogram per picture
+    #face_compare creates a segmentation around possible faces, and uses only the face to create a histogram
+    def describe(self,image,off_center=False,full_picture=False,face_compare=False):
         image = cv2.cvtColor(image,cv2.COLOR_RGB2HSV)
         features = []
         (h,w) = image.shape[:2]
@@ -35,6 +38,25 @@ class ColorDescriptor:
         elif full_picture:
             hist = self.histogram(image,None)
             features.extend(hist)
+        elif face_compare:
+            cascPath = "haarcascade_frontalface_default.xml"
+            faceCascade = cv2.CascadeClassifier(cascPath)
+            #gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            # Detect faces in the image
+            faces = faceCascade.detectMultiScale(
+                image,
+                scaleFactor=1.1,
+                minNeighbors=2,
+                minSize=(25, 25),
+                flags = cv2.cv.CV_HAAR_SCALE_IMAGE
+            )
+
+            for (x,y,w,h) in faces:
+                cornerMask = np.zeros(image.shape[:2],dtype="uint8") 
+                cv2.rectangle(cornerMask, (x,y), (x+w, y+h), 255, -1)
+                print cornerMask
+                hist = self.histogram(image,cornerMask)
+                features.extend(hist)
         else:
             ellipMask = np.zeros(image.shape[:2],dtype="uint8")
             (axesX, axesY) = (int(w * 0.75) / 2, int(h * 0.75) / 2)
@@ -81,12 +103,12 @@ if __name__ == "__main__":
                 for imagePath in glob(args["dataset"] + "/*" + img_type):
                     imageID = imagePath[imagePath.rfind("/") + 1:]
                     image = cv2.imread(imagePath)
-                    features = cd.describe(image,full_picture=False)
+                    features = cd.describe(image,face_compare=True)
                     features = [str(f) for f in features]
                     output.write("%s,%s\n" % (imageID, ",".join(features)))
     if args["index"] and args["query"]:
         query = cv2.imread(args["query"])
-        features = cd.describe(query,full_picture=False)
+        features = cd.describe(query,face_compare=True)
         searcher = Searcher(args["index"])
         results = searcher.search(features)
 
