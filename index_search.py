@@ -54,7 +54,6 @@ class ColorDescriptor:
             for (x,y,w,h) in faces:
                 cornerMask = np.zeros(image.shape[:2],dtype="uint8") 
                 cv2.rectangle(cornerMask, (x,y), (x+w, y+h), 255, -1)
-                print cornerMask
                 hist = self.histogram(image,cornerMask)
                 features.extend(hist)
         else:
@@ -83,7 +82,8 @@ class Searcher:
         with open(self.indexPath) as f:
             reader = csv.reader(f)
             for row in reader:
-                features = [float(x) for x in row[1:]]
+                
+                features = [float(x) for x in row[1:] if x!= '']
                 d = self.chi2_distance(features, queryFeatures)
                 results[row[0]] = d
         results = sorted([(v,k) for (k,v) in results.items()])
@@ -103,14 +103,14 @@ if __name__ == "__main__":
                 for imagePath in glob(args["dataset"] + "/*" + img_type):
                     imageID = imagePath[imagePath.rfind("/") + 1:]
                     image = cv2.imread(imagePath)
-                    features = cd.describe(image,face_compare=True)
+                    features = cd.describe(image,off_center=True)
                     features = [str(f) for f in features]
                     output.write("%s,%s\n" % (imageID, ",".join(features)))
     if args["index"] and args["query"]:
         query = cv2.imread(args["query"])
-        features = cd.describe(query,face_compare=True)
+        features = cd.describe(query,off_center=True)
         searcher = Searcher(args["index"])
-        results = searcher.search(features)
+        results = searcher.search(features,limit=4)
 
         cv2.imshow("query",query)
         for (score,resultID) in results:
