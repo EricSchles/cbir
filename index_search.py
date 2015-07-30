@@ -71,7 +71,7 @@ class ColorDescriptor:
     def histogram(self,image,mask):
         hist = cv2.calcHist([image],[0,1,2],mask,self.bins,
         [0, 180, 0, 256, 0, 256])
-        hist = cv2.normalize(hist).flatten()
+        hist2 = cv2.normalize(hist,hist).flatten()
         return hist
 
 class Searcher:
@@ -81,11 +81,13 @@ class Searcher:
         results = {}
         with open(self.indexPath) as f:
             reader = csv.reader(f)
-            for row in reader:
-                
-                features = [float(x) for x in row[1:] if x!= '']
-                d = self.chi2_distance(features, queryFeatures)
-                results[row[0]] = d
+            try:
+                for row in reader:
+                    features = [float(x) for x in row[1:] if x!= '']
+                    d = self.chi2_distance(features, queryFeatures)
+                    results[row[0]] = d
+            except IndexError:
+                pass
         results = sorted([(v,k) for (k,v) in results.items()])
         return results[:limit]
     def chi2_distance(self,histA,histB, eps = 1e-10):
@@ -103,17 +105,22 @@ if __name__ == "__main__":
                 for imagePath in glob(args["dataset"] + "/*" + img_type):
                     imageID = imagePath[imagePath.rfind("/") + 1:]
                     image = cv2.imread(imagePath)
-                    features = cd.describe(image,off_center=True)
+                    features = cd.describe(image)
                     features = [str(f) for f in features]
                     output.write("%s,%s\n" % (imageID, ",".join(features)))
     if args["index"] and args["query"]:
         query = cv2.imread(args["query"])
-        features = cd.describe(query,off_center=True)
+        features = cd.describe(query)
         searcher = Searcher(args["index"])
         results = searcher.search(features,limit=4)
-
+        
         cv2.imshow("query",query)
         for (score,resultID) in results:
             result = cv2.imread(args["result_path"] + "/" + resultID)
-            cv2.imshow("Result",result)
-            cv2.waitKey(0)
+            if result:
+                cv2.imshow("Result",result)
+                cv2.waitKey(0)
+            else:
+                print "skipped"
+                continue
+    
