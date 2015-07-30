@@ -71,8 +71,8 @@ class ColorDescriptor:
     def histogram(self,image,mask):
         hist = cv2.calcHist([image],[0,1,2],mask,self.bins,
         [0, 180, 0, 256, 0, 256])
-        hist2 = cv2.normalize(hist,hist).flatten()
-        return hist
+        hist2 = cv2.normalize(hist,np.zeros(image.shape[:2],dtype="uint8")).flatten()
+        return hist2
 
 class Searcher:
     def __init__ (self,indexPath):
@@ -117,10 +117,6 @@ if __name__ == "__main__":
         cv2.imshow("query",query)
         for (score,resultID) in results:
             result = cv2.imread(args["result_path"] + "/" + resultID)
-            if result:
-                cv2.imshow("Result",result)
-                cv2.waitKey(0)
-            else:
-                print "skipped"
-                continue
-    
+            cv2.imshow("Result",result)
+            cv2.waitKey(0)
+            
